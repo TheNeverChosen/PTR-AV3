@@ -33,11 +33,15 @@ Queue* queue_new(){
 }
 
 size_t queue_size(Queue *queue){
-  return queue ? queue->size : 0;
+  if(queue==NULL) return 0;
+  pthread_mutex_lock(&queue->mutex);
+  size_t size = queue->size;
+  pthread_mutex_unlock(&queue->mutex);
+  return size;
 }
 
 bool queue_is_empty(Queue *queue){
-  return queue ? queue->size==0 : true;
+  return queue_size(queue)==0;
 }
 
 void queue_delete(Queue *queue, void (*free_data)(void*)){
@@ -49,8 +53,9 @@ void queue_delete(Queue *queue, void (*free_data)(void*)){
 void queue_push(Queue *queue, void *data){
   if(queue==NULL) return;
   pthread_mutex_lock(&queue->mutex);
+
   LinkedNode *node = linked_node_new(data, NULL);
-  if(queue_is_empty(queue)) queue->head = node;
+  if(queue->size<=0) queue->head = node;
   else queue->tail->next = node;
   queue->tail = node;
   queue->size++;
@@ -60,7 +65,7 @@ void queue_push(Queue *queue, void *data){
 void queue_pop(Queue *queue, void (*free_data)(void*)){
   if(queue==NULL) return;
   pthread_mutex_lock(&queue->mutex);
-  if(queue_is_empty(queue)){
+  if(queue->size<=0){
     pthread_mutex_unlock(&queue->mutex);
     return;
   }
